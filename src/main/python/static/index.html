@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BlueIris AI Server — Object Detection</title>
+  <title>Blue Iris AI Server</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
     .row { margin-bottom: 12px; }
@@ -116,7 +116,7 @@
       canvas.style.display = 'block';
     }
 
-    document.getElementById('file').addEventListener('change', (ev) => {
+    document.getElementById('image').addEventListener('change', (ev) => {
       const f = ev.target.files[0];
       const img = document.getElementById('preview');
       const canvas = document.getElementById('canvas');
@@ -132,8 +132,8 @@
 
     document.getElementById('runBtn').addEventListener('click', async () => {
       const model = document.getElementById('model').value;
-      const fileInput = document.getElementById('file');
-      const conf = document.getElementById('conf').value;
+      const fileInput = document.getElementById('image');
+      const conf = document.getElementById('min_confidence').value;
       const iou = document.getElementById('iou').value;
       const max_det = document.getElementById('max_det').value;
       const results = document.getElementById('results');
@@ -142,8 +142,8 @@
       if (!model) { results.textContent = 'Please select a model.'; return; }
       if (!fileInput.files || fileInput.files.length === 0) { results.textContent = 'Please choose an image file.'; return; }
       const fd = new FormData();
-      fd.append('file', fileInput.files[0]);
-      fd.append('conf', conf);
+      fd.append('image', fileInput.files[0]);
+      fd.append('min_confidence', conf);
       fd.append('iou', iou);
       fd.append('max_det', max_det);
       try {

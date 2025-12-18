@@ -1,3 +1,6 @@
+import datetime
+from datetime import UTC
+
 from flask import Flask, request, jsonify, g
 import os
 import glob
@@ -7,6 +10,7 @@ import io
 import time
 import json
 import ast
+import uuid
 from typing import Tuple, List, Dict, Optional
 import logging
 
@@ -220,7 +224,8 @@ def init():
         try:
             # Load YOLOv5 custom weights; torch.hub fetches ultralytics/yolov5 repo if needed
             model = torch.hub.load('ultralytics/yolov5', 'custom', path=pt_file)
-            model_name = os.path.splitext(os.path.basename(pt_file))[0]
+            # Always normalize model names to lower-case
+            model_name = os.path.splitext(os.path.basename(pt_file))[0].lower()
             torch_models[model_name] = model
             print(f"Loaded YOLOv5 PyTorch model '{model_name}' from: {pt_file}")
         except Exception as e:
@@ -238,7 +243,8 @@ def init():
                 so = ort.SessionOptions()
                 so.log_severity_level = 0
                 session = ort.InferenceSession(onnx_file, sess_options=so, providers=providers, provider_options=provider_options)
-            model_name = os.path.splitext(os.path.basename(onnx_file))[0]
+            # Always normalize model names to lower-case
+            model_name = os.path.splitext(os.path.basename(onnx_file))[0].lower()
             # Attach model name to session so we can resolve class names later
             try:
                 setattr(session, '_bi_model_name', model_name)
@@ -261,13 +267,26 @@ def init():
 @app.route('/v1/vision/custom/list', methods=['GET', 'POST'])
 def list_custom_models():
     # Return the list of available model names from both frameworks
-    names = sorted(set(list(torch_models.keys()) + list(onnx_models.keys())))
-    return jsonify({"success": True, "models": names})
+    # Ensure model names are lower-case in the response
+    names = sorted(set([str(n).lower() for n in torch_models.keys()] + [str(n).lower() for n in onnx_models.keys()]))
+    return jsonify({"success": True, 
+                    "models": names,
+                    "inferenceMs" : 0,
+                    "processMs" : 0,
+                    "analysisRoundTripMs": 1,
+                    "moduleName": "Object Detection (YOLOv5)",
+                    "moduleId": str(uuid.uuid4()),
+                    "command": "list-custom",
+                    "requestId": str(uuid.uuid4()),
+                    "processedBy": "localhost",
+                    "timeStampUTC": datetime.datetime.now(UTC).isoformat()})
+
 
 @app.route('/models')
 def list_models():
     # Return the list of available model names from both frameworks
-    names = sorted(set(list(torch_models.keys()) + list(onnx_models.keys())))
+    # Ensure model names are lower-case in the response
+    names = sorted(set([str(n).lower() for n in torch_models.keys()] + [str(n).lower() for n in onnx_models.keys()]))
     return jsonify({"models": names})
 
 def letterbox(im: Image.Image, new_shape: Tuple[int, int] = (640, 640), color: Tuple[int, int, int] = (114, 114, 114)) -> Tuple[Image.Image, float, Tuple[int, int]]:
@@ -896,6 +915,9 @@ def vision_custom(model_name):
 
     :rtype: flask.Response
     """
+    # Normalize incoming model name to lower-case for consistent addressing
+    model_name = (model_name or '').lower()
+
     # Model selection: prefer PyTorch if exists, else ONNX
     framework = None
     model = None
@@ -939,7 +961,7 @@ def vision_custom(model_name):
             can_use_gpu=False
         ), 400
     content_type = file.mimetype or ''
-    if content_type not in ("image/jpeg", "image/png"):
+    if content_type not in ("image/jpeg", "image/png", ''):
         return error_response(
             message="Unsupported file type. Use image/jpeg or image/png.",
             error="UnsupportedMediaType",
