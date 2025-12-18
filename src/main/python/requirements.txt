@@ -1,0 +1,6 @@
+flask
+torch
+onnxruntime-openvino
+numpy
+yolov5
+Pillow
