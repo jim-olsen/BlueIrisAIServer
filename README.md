@@ -17,6 +17,22 @@ Simply start the python server by running server.py.  Point your blueiris
 configuration to the address of the machine (can be run on the same machine)
 with port 5000.  Blueiris should then work as normal.
 
+## Model Notes
+
+Note that I have included to example models in the models directory.  These are just
+for demonstration purposes only.  The real supported files are at:
+
+https://github.com/MikeLud/CodeProject.AI-Custom-IPcam-Models
+
+and should be sourced from there directly.  These are included here for convenience.
+
+## Running automated on windows
+
+Note that the easiest way to do this is to create a simple batch file.  Have the batch file
+change directory to the project directory under src/main/python and then run the server.py file.
+Myself, I setup a virtual environment and use that python instance directly.  I then use task scheduler
+and create a new task on startup that runs the batch file.
+
 ## Installing OpenVINO on Windows
 
 These are the steps I used to install OpenVINO on Windows 11.
