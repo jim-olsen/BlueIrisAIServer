@@ -13,6 +13,7 @@ import ast
 import uuid
 from typing import Tuple, List, Dict, Optional
 import logging
+import platform
 
 try:
     from PIL import Image
@@ -22,6 +23,14 @@ except Exception:
     np = None
 
 SERVER_PORT = 5000
+if platform.system() == 'Windows':
+    try:
+        INTEL_OPENVINO_DIR = os.environ.get('INTEL_OPENVINO_DIR')
+        os.add_dll_directory(INTEL_OPENVINO_DIR + '\\runtime\\bin\\intel64\\Release')
+        os.add_dll_directory(INTEL_OPENVINO_DIR + '\\runtime\\bin\\intel64\\Debug')
+        os.add_dll_directory(INTEL_OPENVINO_DIR + '\\runtime\\3rdparty\\tbb\\bin')
+    except Exception:
+        print("INTEL_OPENVINO_DIR environment variable not set")
 
 app = Flask(__name__, static_folder='static')
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB limit
@@ -72,6 +81,21 @@ LOGGER = _configure_global_logger()
 
 
 def _truncate_val(val, max_len: int = 500):
+    """
+    Truncates a given value to a maximum specified length. Converts the value
+    to its string representation if necessary and ensures the length of the
+    resulting string does not exceed the limit. Appends a notice of truncation
+    if the string is shortened.
+
+    :param val: The value to be truncated. Can be of any type that is convertible
+        to a string.
+    :param max_len: The maximum allowed length for the string representation
+        of the value. Defaults to 500.
+    :type max_len: int
+    :return: The truncated string representation of the value, or the string
+        "<unrepr>" if the value could not be converted to a string.
+    :rtype: str
+    """
     try:
         s = str(val)
     except Exception:
@@ -126,7 +150,17 @@ def _collect_request_params() -> Dict[str, object]:
 
 
 @app.before_request
-def _log_incoming_request():
+def log_incoming_request():
+    """
+    Marks the start time of the incoming request for duration logging and logs the
+    request details such as method, URL, path, remote address, and parameters.
+
+    This function is executed before handling each HTTP request in the application
+    to gather and log relevant information for debugging and monitoring purposes.
+
+    :raises Exception: Logs a warning if an error occurs during the logging of the
+        request details.
+    """
     # Mark start time for duration logging
     g._req_start_ts = time.time()
     try:
@@ -143,7 +177,21 @@ def _log_incoming_request():
 
 
 @app.after_request
-def _log_outgoing_response(response):
+def log_outgoing_response(response):
+    """
+    Logs details about the outgoing HTTP response, including the request method,
+    path, response status code, and the time taken to process the request in
+    milliseconds if the timing information is available.
+
+    If an exception is raised during the logging process, it is caught and
+    silently ignored to ensure the response is returned to the client
+    without interruption.
+
+    :param response: The HTTP response object being sent back to the client.
+    :type response: flask.wrappers.Response
+    :return: The original HTTP response object to be returned to the client.
+    :rtype: flask.wrappers.Response
+    """
     try:
         start = getattr(g, "_req_start_ts", None)
         dur_ms = (time.time() - start) * 1000.0 if start is not None else None
@@ -206,10 +254,29 @@ def select_onnx_providers() -> Tuple[List[str], Optional[List[Dict[str, str]]]]:
 
 @app.route('/')
 def index():
-    # Serve the static HTML file instead of hard-coded HTML
+    """
+    Serve the static HTML file instead of hard-coded HTML
+
+    :return: The contents of the index.html file
+    """
     return app.send_static_file('index.html')
 
 def init():
+    """
+    Initializes global dictionaries torch_models and onnx_models by loading machine learning
+    models from 'models' directory. It scans the directory for YOLOv5 `.pt` files and `.onnx`
+    files, processes them with appropriate frameworks (`torch.hub` for `.pt` files and
+    `onnxruntime` for `.onnx` files), and stores the loaded models in the global dictionaries
+    with normalized model names.
+
+    :global dict torch_models: A dictionary containing loaded YOLOv5 PyTorch models. The keys
+        are normalized model names in lowercase, and the values are the corresponding PyTorch
+        model instances.
+    :global dict onnx_models: A dictionary containing loaded ONNX models. The keys are normalized
+        model names in lowercase, and the values are the corresponding ONNX runtime session
+        objects.
+
+    """
     global torch_models, onnx_models
 
     models_dir = 'models'
@@ -266,8 +333,8 @@ def init():
 
 @app.route('/v1/vision/custom/list', methods=['GET', 'POST'])
 def list_custom_models():
-    # Return the list of available model names from both frameworks
-    # Ensure model names are lower-case in the response
+    # Return the list of available model names from both frameworks in the same format
+    # as used by codeproject ai
     names = sorted(set([str(n).lower() for n in torch_models.keys()] + [str(n).lower() for n in onnx_models.keys()]))
     return jsonify({"success": True, 
                     "models": names,
