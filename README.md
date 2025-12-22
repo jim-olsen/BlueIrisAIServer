@@ -18,3 +18,46 @@ configuration to the address of the machine (can be run on the same machine)
 with port 5000.  Blueiris should then work as normal.
 
 ## Installing OpenVINO on Windows
+
+These are the steps I used to install OpenVINO on Windows 11.
+
+```
+mkdir C:\Program Files (x86)\Intel
+```
+
+Then download the runtime archive file
+
+```
+cd <user_home>\Downloads
+curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.4/windows/openvino_toolkit_windows_2025.4.0.20398.8fdad55727d_x86_64.zip --output openvino_2025.4.0.zip
+```
+
+Extract the archive and copy to the target directory
+
+```
+tar -xf openvino_2025.4.0.zip
+ren openvino_toolkit_windows_2025.4.0.20398.8fdad55727d_x86_64 openvino_2025.4.0
+move openvino_2025.4.0 "C:\Program Files (x86)\Intel"
+cd C:\Program Files (x86)\Intel
+mklink /D openvino_2025 openvino_2025.4.0
+```
+
+Next you want to setup the environment variables.  You can do this for each session if you like by using
+the setupvars.bat file in the bin directory.  I prefer to set them globally so I can use them from any
+program or prompt.  These are the required environment variables.
+
+```
+INTEL_OPENVINO_DIR=C:\Program Files (x86)\Intel\openvino_2025
+PYTHONPATH=%INTEL_OPENVINO_DIR%\python;%INTEL_OPENVINO_DIR%\python\python3
+```
+
+Then add on to the path variable the following directories:
+
+```
+%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release
+%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug
+%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin
+```
+
+The requirements.txt file in the project already loads the python libraries required to utlize openvino
+with onnx models.
