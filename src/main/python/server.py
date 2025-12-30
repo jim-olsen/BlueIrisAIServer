@@ -52,6 +52,8 @@ COCO80 = [
     'oven','toaster','sink','refrigerator','book','clock','vase','scissors','teddy bear','hair drier','toothbrush'
 ]
 
+LOG_METHODS = ["POST"]
+
 
 def _configure_global_logger() -> logging.Logger:
     """Configure and return a module-level logger.
@@ -164,14 +166,15 @@ def log_incoming_request():
     # Mark start time for duration logging
     g._req_start_ts = time.time()
     try:
-        info = {
-            "method": request.method,
-            "url": request.url,
-            "path": request.path,
-            "remote_addr": request.remote_addr,
-            "params": _collect_request_params(),
-        }
-        LOGGER.info("Incoming request: %s", json.dumps(info, default=str))
+        if request.method in LOG_METHODS:
+            info = {
+                "method": request.method,
+                "url": request.url,
+                "path": request.path,
+                "remote_addr": request.remote_addr,
+                "params": _collect_request_params(),
+            }
+            LOGGER.info("Incoming request: %s", json.dumps(info, default=str))
     except Exception as e:
         LOGGER.warning("Failed to log request: %s", e)
 
@@ -193,15 +196,16 @@ def log_outgoing_response(response):
     :rtype: flask.wrappers.Response
     """
     try:
-        start = getattr(g, "_req_start_ts", None)
-        dur_ms = (time.time() - start) * 1000.0 if start is not None else None
-        LOGGER.info(
-            "Request done: %s %s -> %s%s",
-            request.method,
-            request.path,
-            response.status_code,
-            f" in {dur_ms:.1f} ms" if dur_ms is not None else "",
-        )
+        if request.method in LOG_METHODS:
+            start = getattr(g, "_req_start_ts", None)
+            dur_ms = (time.time() - start) * 1000.0 if start is not None else None
+            LOGGER.info(
+                "Request done: %s %s -> %s%s",
+                request.method,
+                request.path,
+                response.status_code,
+                f" in {dur_ms:.1f} ms" if dur_ms is not None else "",
+            )
     except Exception:
         pass
     return response
